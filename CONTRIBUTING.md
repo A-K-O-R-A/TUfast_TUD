@@ -16,7 +16,7 @@ Everything related to the browser extension can be found in `/src`: `manifest.js
 
 #### Used frameworks
 
-- Build tool: [Snowpack](https://www.snowpack.dev/) - You need to run `npm run dev` while developing to compile sass and ts files.
+- Build tool: [Snowpack](https://www.snowpack.dev/)
 - CSS-Preprocessor: We are using [SASS](https://sass-lang.com/).
 - ESlint: We are following standard styling with minor additions. Run `npm run lint` to check your code style before committing code.
 
@@ -32,15 +32,15 @@ You can use [GitHub CodeSpaces](https://github.com/features/codespaces) for easy
 
 Steps to contribute a feature (as a non-TUfast-teammember):
 
-1. Create a fork from this repo.
-2. Create a local clone of your fork `git clone <url-of-your-repo>`
+1. Create a local clone of this repo on your machine `git clone <url-of-your-repo>`
 3. Checkout develop branch `git checkout develop`
-4. Create new feature branch `git checkout -b <my_new_feature_branch>`
+4. Create new feature branch from develop `git checkout -b <my_new_feature_branch>`
 5. Install dependencies `npm ci` (you need node package manager = npm installed)
-6. Run `npm run dev` while developing. This is will compile sass and ts files and watch for changes in your working tree.
-7. Load the ./build directory as an unpacked extension in your browser and --> Implement your Code <--
-8. **run tests locally** before contributing code: `npm run test`
-9. Create a PR on develop branch
+6. Run `npm useChrome` or `npm useFF` to select the browser you want to run the extension for.
+7. npm run dev` while developing. This is will compile sass and ts files and watch for changes in your working tree.
+8. Load the ./build directory as an unpacked extension in your browser 
+9. **run tests locally** before contributing code: `npm run test`
+10. Create a pull request
 
 **Note:** as a member of the TUfast-Team you can work in this repo directly, e.g. you can create branches and push to them, making the contribution process easier.
 
