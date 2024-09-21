@@ -60,13 +60,12 @@ var Graphing;
       const {grade, count} = coarseValues[x];
       const barHeight = count / maxCount * height;
       let className = "passed";
-      console.log(grade +" vs " + user_grade);
       if (grade == parseFloat(user_grade))
-        className = "grade"
+        className = "grade";
       if (grade >= 5){
           className = "failed";
           if (grade == parseFloat(user_grade))
-              className = "failed-grade"
+              className = "failed-grade";
               }
       barsSvg += `
             <rect
@@ -171,12 +170,31 @@ function applyChanges() {
     headRow.children.item(3).textContent = "Notenverteilung";
     const body = document.querySelector("tbody");
     const promises = [];
+    let own_grades = [];
     for (const row of body.children) {
       for (const col of row.children)
         col.removeAttribute("style");
       row.removeChild(row.children.item(3));
       const lastCol = row.children.item(3);
       const scriptElm = lastCol.children.item(1);
+        let own_grade;
+        const gradeElm = row.children.item(2).innerHTML.trim();
+        
+        if (gradeElm.includes(",")){
+            let grade_precise = (gradeElm + "").split(",");
+            let first = grade_precise[0];
+            let second = grade_precise[1];
+            if (second > 70){
+                own_grade = (first++) +".0";
+            } else if (second > 30){
+                own_grade = first + ".7";
+            } else if (second > 0){
+                own_grade = first +".3";
+            } else {
+                own_grade = first + ".0";
+            }
+            own_grades.push(own_grade);
+        }
       if (scriptElm === null)
         continue;
       const scriptContent = scriptElm.innerHTML;
@@ -187,6 +205,7 @@ function applyChanges() {
         return {doc, elm: lastCol, url};
       }));
     }
+    i = 0;
     promises.forEach((p) => p.then(({doc, elm, url}) => {
       const tableBody = doc.querySelector("tbody");
       const values = [...tableBody.children].map((tr) => {
@@ -203,7 +222,9 @@ function applyChanges() {
           count
         };
       });
-      const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url);
+    const own_grade = own_grades[i];
+    const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url, own_grade);
+    i += 1;
       elm.innerHTML = graphSVG;
     }));
     const tableHeadRow = document.querySelector("thead>tr");
@@ -240,12 +261,11 @@ function applyChanges() {
               own_grade = (first++) +".0";
           } else if (second > 3){
               own_grade = first + ".7";
-          }else if (second > 0){
+          } else if (second > 0){
               own_grade = first +".3";
-          }else {
+          } else {
               own_grade = first + ".0";
           }
-          console.log(own_grade);
           own_grades.push(own_grade);
       }
       
@@ -261,7 +281,6 @@ function applyChanges() {
         return {doc, elm: lastCol, url};
       }));
     }
-      console.log(own_grades);
       i = 0;
     promises.forEach((p) => p.then(({doc, elm, url}) => {
       const tableBody = doc.querySelector("tbody");
@@ -280,7 +299,6 @@ function applyChanges() {
         };
       });
         const own_grade = own_grades[i];
-        console.log(own_grade);
         const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url, own_grade);
         i += 1;
       elm.innerHTML = graphSVG;
