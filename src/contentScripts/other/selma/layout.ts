@@ -281,7 +281,7 @@ function applyChanges() {
       });
         const own_grade = own_grades[i];
         console.log(own_grade);
-        const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url, user_grade=own_grade);
+        const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url, own_grade);
         i += 1;
       elm.innerHTML = graphSVG;
     }));
