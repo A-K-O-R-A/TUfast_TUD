@@ -1,111 +1,73 @@
-const currentView = document.location.pathname
-// Regex for extracting Programm name and arguments from a popup Script
-// This is used to get the URL which would be opened in a popup
-const popupScriptsRegex =
-  /dl_popUp\("\/scripts\/mgrqispi\.dll\?APPNAME=CampusNet&PRGNAME=(\w+)&ARGUMENTS=([^"]+)"/
-
-function scriptToURL (script: string): string {
-  const matches = script.match(popupScriptsRegex)!
-
-  const porgamName = matches.at(1)!
-  const prgArguments = matches.at(2)!
-
-  return `https://selma.tu-dresden.de/APP/${porgamName}/${prgArguments}`
+const currentView = document.location.pathname;
+const popupScriptsRegex = /dl_popUp\("\/scripts\/mgrqispi\.dll\?APPNAME=CampusNet&PRGNAME=(\w+)&ARGUMENTS=([^"]+)"/;
+function scriptToURL(script) {
+  const matches = script.match(popupScriptsRegex);
+  const porgamName = matches.at(1);
+  const prgArguments = matches.at(2);
+  return `https://selma.tu-dresden.de/APP/${porgamName}/${prgArguments}`;
 }
-
-function mapGrade (gradeElm: Element) {
-  const grade = gradeElm.textContent!
-
-  if (grade.includes('be')) {
-    gradeElm.textContent = '✔'
-    gradeElm.setAttribute('title', 'Bestanden')
-  } else if (grade.includes('noch nicht gesetzt')) {
-    gradeElm.textContent = '🕓'
-    gradeElm.setAttribute('title', 'Noch nicht gesetzt')
+function mapGrade(gradeElm) {
+  const grade = gradeElm.textContent;
+  if (grade.includes("be")) {
+    gradeElm.textContent = "✔";
+    gradeElm.setAttribute("title", "Bestanden");
+  } else if (grade.includes("noch nicht gesetzt")) {
+    gradeElm.textContent = "🕓";
+    gradeElm.setAttribute("title", "Noch nicht gesetzt");
   }
 }
-
-function injectCSS (filename: string) {
-  const style = document.createElement('link')
-  style.rel = 'stylesheet'
-  style.type = 'text/css'
-  style.href = chrome.runtime.getURL(
-    `styles/contentScripts/selma/${filename}.css`
-  );
-
-  (document.head || document.body || document.documentElement).appendChild(
-    style
-  )
+function injectCSS(filename) {
+  const style = document.createElement("link");
+  style.rel = "stylesheet";
+  style.type = "text/css";
+  style.href = chrome.runtime.getURL(`styles/contentScripts/selma/${filename}.css`);
+  (document.head || document.body || document.documentElement).appendChild(style);
 }
-
-/*
----
-
-Proabably a proper bundler config would be better
-
----
-*/
-
-namespace Graphing {
-  export type GradeStat = {
-    grade: number;
-    count: number;
-  };
-
-  function maxGradeCount (values: GradeStat[]): number {
-    let max = 0
-    for (const { count } of values) {
-      if (count > max) max = count
+var Graphing;
+(function(Graphing2) {
+  function maxGradeCount(values) {
+    let max = 0;
+    for (const {count} of values) {
+      if (count > max)
+        max = count;
     }
-    return max
+    return max;
   }
-
-  // Reduce the grade increments
-  function pickGradeSubset (values: GradeStat[]): GradeStat[] {
-    const increments = [1, 1.3, 1.7, 2, 2.3, 2.7, 3, 3.3, 3.7, 4, 5]
-
+  function pickGradeSubset(values) {
+    const increments = [1, 1.3, 1.7, 2, 2.3, 2.7, 3, 3.3, 3.7, 4, 5];
     const newValues = increments.map((inc) => ({
       grade: inc,
       count: 0
-    }))
-
-    let currentIncIndex = 0
-    for (const { grade, count } of values) {
-      // Skip to next increment if we reached it's lower end
+    }));
+    let currentIncIndex = 0;
+    for (const {grade, count} of values) {
       if (currentIncIndex !== increments.length - 1) {
-        const nextIncrement = increments[currentIncIndex + 1]
-        if (grade >= nextIncrement) currentIncIndex++
+        const nextIncrement = increments[currentIncIndex + 1];
+        if (grade >= nextIncrement)
+          currentIncIndex++;
       }
-      newValues[currentIncIndex].count += count
+      newValues[currentIncIndex].count += count;
     }
-
-    return newValues
+    return newValues;
   }
-
-  export function createSVGGradeDistributionGraph (
-    values: GradeStat[],
-    url: string,
-    width = 200,
-    height = 100
-  ): string {
-    // Reduce the bar count / pick bigger intervals
-    const coarseValues = pickGradeSubset(values)
-
-    // Spacing in percent of bar width
-    const spacing = 0.1
-    const barWidth = (width * (1 - spacing)) / coarseValues.length
-
-    // Drawing the Chart
-    let barsSvg = ''
-    const maxCount = maxGradeCount(coarseValues)
+  function createSVGGradeDistributionGraph(values, url, user_grade = "5.0", width = 200, height = 100) {
+    const coarseValues = pickGradeSubset(values);
+    const spacing = 0.1;
+    const barWidth = width * (1 - spacing) / coarseValues.length;
+    let barsSvg = "";
+    const maxCount = maxGradeCount(coarseValues);
     for (let x = 0; x < coarseValues.length; x++) {
-      const { grade, count } = coarseValues[x]
-      const barHeight = (count / maxCount) * height
-
-      // Allows styling the failed sections differently
-      let className = 'passed'
-      if (grade >= 5.0) className = 'failed'
-
+      const {grade, count} = coarseValues[x];
+      const barHeight = count / maxCount * height;
+      let className = "passed";
+      console.log(grade +" vs " + user_grade);
+      if (grade == parseFloat(user_grade))
+        className = "grade"
+      if (grade >= 5){
+          className = "failed";
+          if (grade == parseFloat(user_grade))
+              className = "failed-grade"
+              }
       barsSvg += `
             <rect
               class="${className}"
@@ -115,9 +77,8 @@ namespace Graphing {
             >
               <title>${grade.toFixed(2)}</title>
             </rect>
-          `
+          `;
     }
-
     return `
       <svg
         class="distribution-chart"
@@ -133,53 +94,38 @@ namespace Graphing {
           ${barsSvg}
         </a>
       </svg>
-    `
+    `;
   }
-
-  export type Try = { date: string; grade: string };
-
-  export function createJExamTryCounter (
-    tries: Try[],
-    url: string,
-    width = 200
-  ): string {
-    // Spacing in percent of circle width
-    const spacing = 0.2
-    // Stroke width in percent of radius
-    const strokeWidth = 0.12
-
-    const filledRadius = (width * (1 - spacing)) / 6
-    const strokedRadius = filledRadius * (1 - strokeWidth)
-    // +1 to prevent weird cut off
-    const height = Math.ceil(2 * filledRadius) + 1
-
-    // Drawing the Chart
-    let svgContent = ''
-
+  Graphing2.createSVGGradeDistributionGraph = createSVGGradeDistributionGraph;
+  function createJExamTryCounter(tries, url, width = 200) {
+    const spacing = 0.2;
+    const strokeWidth = 0.12;
+    const filledRadius = width * (1 - spacing) / 6;
+    const strokedRadius = filledRadius * (1 - strokeWidth);
+    const height = Math.ceil(2 * filledRadius) + 1;
+    let svgContent = "";
     for (let x = 0; x < 3; x++) {
-      let className = 'used'
-      let tooltip = ''
+      let className = "used";
+      let tooltip = "";
       if (x >= tries.length) {
-        // Mark open try
-        className = 'open'
+        className = "open";
       } else {
-        const { date, grade } = tries[x]
-        tooltip = `<title>${grade}\n${date}</title>`
+        const {date, grade} = tries[x];
+        tooltip = `<title>${grade}
+${date}</title>`;
       }
-
       svgContent += `
             <circle
               class="${className}"
               stroke-width="${strokeWidth * height}"
               cx="${2 * x * filledRadius * (1 + spacing) + filledRadius}"
               cy="${filledRadius}"
-              r="${className === 'used' ? filledRadius : strokedRadius}"
+              r="${className === "used" ? filledRadius : strokedRadius}"
             >
               ${tooltip}
             </circle>
-          `
+          `;
     }
-
     return `
       <svg
         class="tries-counter"
@@ -195,306 +141,216 @@ namespace Graphing {
           ${svgContent}
         </a>
       </svg>
-    `
+    `;
   }
-}
-
-/*
----
-
-Actual logic
-
----
-*/
-
+  Graphing2.createJExamTryCounter = createJExamTryCounter;
+})(Graphing || (Graphing = {}));
 (async () => {
-  const { selmajExamTheme } = await chrome.storage.local.get([
-    'selmajExamTheme'
-  ])
-
-  if (!selmajExamTheme) return
-
-  // Apply all custom changes
-  document.addEventListener('DOMContentLoaded', eventListener, false)
-})()
-
-function eventListener () {
-  document.removeEventListener('DOMContentLoaded', eventListener, false)
-
-  // Inject css
-  injectCSS('base')
-  if (
-    currentView.startsWith('/APP/EXAMRESULTS/') ||
-    currentView.startsWith('/APP/COURSERESULTS/')
-  ) {
-    injectCSS('exam_results')
+  const {selmajExamTheme} = await chrome.storage.local.get([
+    "selmajExamTheme"
+  ]);
+  if (!selmajExamTheme)
+    return;
+  document.addEventListener("DOMContentLoaded", eventListener, false);
+})();
+function eventListener() {
+  document.removeEventListener("DOMContentLoaded", eventListener, false);
+  injectCSS("base");
+  if (currentView.startsWith("/APP/EXAMRESULTS/") || currentView.startsWith("/APP/COURSERESULTS/")) {
+    injectCSS("exam_results");
   }
-  if (currentView.startsWith('/APP/MYEXAMS/')) {
-    injectCSS('my_exams')
+  if (currentView.startsWith("/APP/MYEXAMS/")) {
+    injectCSS("my_exams");
   }
-
-  applyChanges()
+  applyChanges();
 }
-
-function applyChanges () {
-  if (currentView.startsWith('/APP/EXAMRESULTS/')) {
-    // Prüfungen > Ergebnisse
-
-    // Remove the "gut/befriedigend" section
-    const headRow = document.querySelector('thead>tr')!
-    headRow.removeChild(headRow.children.item(3)!)
-    headRow.children.item(3)!.textContent = 'Notenverteilung'
-
-    const body = document.querySelector('tbody')!
-    const promises: Promise<{ doc: Document; elm: Element; url: string }>[] =
-      []
+function applyChanges() {
+  if (currentView.startsWith("/APP/EXAMRESULTS/")) {
+    const headRow = document.querySelector("thead>tr");
+    headRow.removeChild(headRow.children.item(3));
+    headRow.children.item(3).textContent = "Notenverteilung";
+    const body = document.querySelector("tbody");
+    const promises = [];
     for (const row of body.children) {
-      // Remove useless inline styles which set the vertical alignment
-      for (const col of row.children) col.removeAttribute('style')
-
-      row.removeChild(row.children.item(3)!)
-
-      // Extract script content
-      const lastCol = row.children.item(3)!
-      const scriptElm = lastCol.children.item(1)
-      if (scriptElm === null) continue
-
-      const scriptContent = scriptElm!.innerHTML
-
-      const url = scriptToURL(scriptContent)
-
-      promises.push(
-        fetch(url).then(async (s) => {
-          const parser = new DOMParser()
-          const doc = parser.parseFromString(await s.text(), 'text/html')
-
-          return { doc, elm: lastCol, url }
-        })
-      )
+      for (const col of row.children)
+        col.removeAttribute("style");
+      row.removeChild(row.children.item(3));
+      const lastCol = row.children.item(3);
+      const scriptElm = lastCol.children.item(1);
+      if (scriptElm === null)
+        continue;
+      const scriptContent = scriptElm.innerHTML;
+      const url = scriptToURL(scriptContent);
+      promises.push(fetch(url).then(async (s) => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(await s.text(), "text/html");
+        return {doc, elm: lastCol, url};
+      }));
     }
-
-    promises.forEach((p) =>
-      p.then(({ doc, elm, url }) => {
-        const tableBody = doc.querySelector('tbody')!
-        const values = [...tableBody.children].map((tr) => {
-          const gradeText = tr.children.item(0)!.textContent!.replace(',', '.')
-          const grade = parseFloat(gradeText)
-
-          const countText = tr.children.item(1)!.textContent!
-          let count: number
-          if (countText === '---') count = 0
-          else count = parseInt(countText)
-
-          return {
-            grade,
-            count
-          }
-        })
-        // .slice(0, -2); // Remove the 5.0 from all lists
-
-        // Present the bar chart
-        const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url)
-        elm.innerHTML = graphSVG
-      })
-    )
-
-    // Remove the inline style that sets a width on the top right table cell
-    const tableHeadRow = document.querySelector('thead>tr')!
-    tableHeadRow.children.item(3)!.removeAttribute('style')
-    /*
-
-*/
-  } else if (currentView.startsWith('/APP/COURSERESULTS/')) {
-    // Prüfungen > Ergebnisse
-
-    // Remove the "bestanden" section
-    const headRow = document.querySelector('thead>tr')!
-    headRow.removeChild(headRow.children.item(3)!)
-
-    // Add "Notenverteilung" header
+    promises.forEach((p) => p.then(({doc, elm, url}) => {
+      const tableBody = doc.querySelector("tbody");
+      const values = [...tableBody.children].map((tr) => {
+        const gradeText = tr.children.item(0).textContent.replace(",", ".");
+        const grade = parseFloat(gradeText);
+        const countText = tr.children.item(1).textContent;
+        let count;
+        if (countText === "---")
+          count = 0;
+        else
+          count = parseInt(countText);
+        return {
+          grade,
+          count
+        };
+      });
+      const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url);
+      elm.innerHTML = graphSVG;
+    }));
+    const tableHeadRow = document.querySelector("thead>tr");
+    tableHeadRow.children.item(3).removeAttribute("style");
+  } else if (currentView.startsWith("/APP/COURSERESULTS/")) {
+    const headRow = document.querySelector("thead>tr");
+    headRow.removeChild(headRow.children.item(3));
     {
-      headRow.children.item(3)!.removeAttribute('colspan')
-      const newHeader = document.createElement('th')
-      newHeader.textContent = 'Notenverteilung'
-      headRow.appendChild(newHeader)
+      headRow.children.item(3).removeAttribute("colspan");
+      const newHeader = document.createElement("th");
+      newHeader.textContent = "Notenverteilung";
+      headRow.appendChild(newHeader);
     }
-
-    // Create the grade distribution graph
-    const body = document.querySelector('tbody')!
-    const promises: Promise<{ doc: Document; elm: Element; url: string }>[] =
-      []
+    const body = document.querySelector("tbody");
+    const promises = [];
+    let own_grades = [];
     for (const row of body.children) {
-      // Remove useless inline styles which set the vertical alignment
-      for (const col of row.children) col.removeAttribute('style')
-
-      // Remove "Status" column
-      row.removeChild(row.children.item(3)!)
-
+      for (const col of row.children)
+        col.removeAttribute("style");
+      row.removeChild(row.children.item(3));
       {
-        // Map grade descriptions to emojis
-        const gradeElm = row.children.item(2)!
-        mapGrade(gradeElm)
+        const gradeElm = row.children.item(2);
+        mapGrade(gradeElm);
       }
+      let own_grade;
+      const gradeElm = row.children.item(2).innerHTML.trim();
 
-      // Extract script content
-      const lastCol = row.children.item(4)!
-      const scriptElm = lastCol.children.item(1)
-      // Skip courses wihtout grades
-      if (scriptElm === null) continue
-
-      const scriptContent = scriptElm!.innerHTML
-
-      const url = scriptToURL(scriptContent)
-
-      promises.push(
-        fetch(url).then(async (s) => {
-          const parser = new DOMParser()
-          const doc = parser.parseFromString(await s.text(), 'text/html')
-
-          return { doc, elm: lastCol, url }
-        })
-      )
-    }
-
-    promises.forEach((p) =>
-      p.then(({ doc, elm, url }) => {
-        // Parse the grade distributions
-        const tableBody = doc.querySelector('tbody')!
-        const values = [...tableBody.children].map((tr) => {
-          const gradeText = tr.children.item(0)!.textContent!.replace(',', '.')
-          const grade = parseFloat(gradeText)
-
-          const countText = tr.children.item(1)!.textContent!
-          let count: number
-          if (countText === '---') count = 0
-          else count = parseInt(countText)
-
-          return {
-            grade,
-            count
+      if (gradeElm.includes(",")){
+          let grade_precise = (gradeElm + "").split(",");
+          let first = grade_precise[0];
+          let second = grade_precise[1];
+          
+          if (second > 7){
+              own_grade = (first++) +".0";
+          } else if (second > 3){
+              own_grade = first + ".7";
+          }else if (second > 0){
+              own_grade = first +".3";
+          }else {
+              own_grade = first + ".0";
           }
-        })
-        // .slice(0, -2); // Remove the 5.0 from all lists
-
-        // Present the bar chart
-        const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url)
-        elm.innerHTML = graphSVG
-      })
-    )
-
-    // Remove the inline style that sets a width on the top right table cell
-    const tableHeadRow = document.querySelector('thead>tr')!
-    tableHeadRow.children.item(3)!.removeAttribute('style')
-
-    // Draw try counter in the jExam style
+          console.log(own_grade);
+          own_grades.push(own_grade);
+      }
+      
+      const lastCol = row.children.item(4);
+      const scriptElm = lastCol.children.item(1);
+      if (scriptElm === null)
+        continue;
+      const scriptContent = scriptElm.innerHTML;
+      const url = scriptToURL(scriptContent);
+      promises.push(fetch(url).then(async (s) => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(await s.text(), "text/html");
+        return {doc, elm: lastCol, url};
+      }));
+    }
+      console.log(own_grades);
+      i = 0;
+    promises.forEach((p) => p.then(({doc, elm, url}) => {
+      const tableBody = doc.querySelector("tbody");
+      const values = [...tableBody.children].map((tr) => {
+        const gradeText = tr.children.item(0).textContent.replace(",", ".");
+        const grade = parseFloat(gradeText);
+        const countText = tr.children.item(1).textContent;
+        let count;
+        if (countText === "---")
+          count = 0;
+        else
+          count = parseInt(countText);
+        return {
+          grade,
+          count
+        };
+      });
+        const own_grade = own_grades[i];
+        console.log(own_grade);
+        const graphSVG = Graphing.createSVGGradeDistributionGraph(values, url, user_grade=own_grade);
+        i += 1;
+      elm.innerHTML = graphSVG;
+    }));
+    const tableHeadRow = document.querySelector("thead>tr");
+    tableHeadRow.children.item(3).removeAttribute("style");
     for (const row of body.children) {
-      const linkElm = row.children.item(3)!
-      const scriptElm = linkElm.children.item(1)
-      // Skip courses wihtout grades
-      if (scriptElm === null) continue
-
-      // Extract script content
-      const scriptContent = scriptElm!.innerHTML
-      const url = scriptToURL(scriptContent)
-
-      // Center the remaining "> Prüfung" links so it looks better after everything loaded
-      linkElm.setAttribute('style', 'text-align: center;')
-
-      // Fetch data
+      const linkElm = row.children.item(3);
+      const scriptElm = linkElm.children.item(1);
+      if (scriptElm === null)
+        continue;
+      const scriptContent = scriptElm.innerHTML;
+      const url = scriptToURL(scriptContent);
+      linkElm.setAttribute("style", "text-align: center;");
       fetch(url).then(async (s) => {
-        const parser = new DOMParser()
-        const doc = parser.parseFromString(await s.text(), 'text/html')
-
-        // Extracting the grades of individual tries
-        const tableBody = doc.querySelector('tbody')!
-        const tries: Graphing.Try[] = []
-
-        // Search for tries
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(await s.text(), "text/html");
+        const tableBody = doc.querySelector("tbody");
+        const tries = [];
         for (let i = 0; i < tableBody.children.length; i++) {
-          const trElm = tableBody.children.item(i)!
-          const firstTd = trElm.querySelector('td.level02')
-
-          // Before a row with a grade there is always a row containing "Modulprüfung"
-          if (firstTd !== null && firstTd.textContent === 'Modulprüfung') {
-            // Next row will contain a try with a grade
-            let nextTrElm = tableBody.children.item(i + 1)!
-            // Sometimes there is an extra row
+          const trElm = tableBody.children.item(i);
+          const firstTd = trElm.querySelector("td.level02");
+          if (firstTd !== null && firstTd.textContent === "Modulprüfung") {
+            let nextTrElm = tableBody.children.item(i + 1);
             if (nextTrElm.children.length === 1) {
-              nextTrElm = tableBody.children.item(i + 2)!
+              nextTrElm = tableBody.children.item(i + 2);
             }
-
-            // Extract information
-            const date = nextTrElm.children.item(2)!.textContent!.trim()
-            const grade = nextTrElm.children.item(3)!.textContent!.trim()
-            tries.push({ date, grade })
-
-            i += 2
-            continue
+            const date = nextTrElm.children.item(2).textContent.trim();
+            const grade = nextTrElm.children.item(3).textContent.trim();
+            tries.push({date, grade});
+            i += 2;
+            continue;
           }
         }
-
-        // Unable to parse the grades from the tables
-        if (tries.length === 0) return
-
-        // Replace link with a chart
-        linkElm.innerHTML = Graphing.createJExamTryCounter(tries, url)
-      })
+        if (tries.length === 0)
+          return;
+        linkElm.innerHTML = Graphing.createJExamTryCounter(tries, url);
+      });
     }
-
-    /*
-
-*/
-  } else if (currentView.startsWith('/APP/MYEXAMS/')) {
-    // Prüfungen
-
-    const body = document.querySelector('tbody')!
-    const rows = [...body.children]
+  } else if (currentView.startsWith("/APP/MYEXAMS/")) {
+    const body = document.querySelector("tbody");
+    const rows = [...body.children];
     for (let i = 0; i < rows.length; i += 2) {
-      const topRow = rows[i]
-      const botRow = rows[i + 1]
-
-      const thElm = topRow.children.item(0)!
-      thElm.className += ' module-description'
-      // moduleCode, hyperlink, space, br, description
-      const [, , , , description] = thElm.childNodes
-
+      const topRow = rows[i];
+      const botRow = rows[i + 1];
+      const thElm = topRow.children.item(0);
+      thElm.className += " module-description";
+      const [, , , , description] = thElm.childNodes;
       {
-        // Move exam type and examinant to the right side
-        thElm.setAttribute('colspan', '2')
-        const newSpacer = document.createElement('th')
-        newSpacer.setAttribute('colspan', '2')
-        newSpacer.replaceChildren(...botRow.children.item(1)!.children)
-        topRow.appendChild(newSpacer)
+        thElm.setAttribute("colspan", "2");
+        const newSpacer = document.createElement("th");
+        newSpacer.setAttribute("colspan", "2");
+        newSpacer.replaceChildren(...botRow.children.item(1).children);
+        topRow.appendChild(newSpacer);
       }
-
       {
-        // Move the description under the exam title
-        // Remove useless first element
-        botRow.removeChild(botRow.children.item(1)!)
-        const newDescriptionElm = botRow.children.item(0)!
-        newDescriptionElm.setAttribute('colspan', '2')
-        newDescriptionElm.className += ' module-description'
-
-        // Some entries do not have a description
+        botRow.removeChild(botRow.children.item(1));
+        const newDescriptionElm = botRow.children.item(0);
+        newDescriptionElm.setAttribute("colspan", "2");
+        newDescriptionElm.className += " module-description";
         if (thElm.childNodes.length === 5) {
-          newDescriptionElm.appendChild(description)
+          newDescriptionElm.appendChild(description);
         }
       }
-
       {
-        // Remove useless timespans
-        const dateElm = botRow.children.item(1)!
-        dateElm.textContent = dateElm.textContent!.replaceAll(
-          '00:00-00:00',
-          ''
-        )
+        const dateElm = botRow.children.item(1);
+        dateElm.textContent = dateElm.textContent.replaceAll("00:00-00:00", "");
       }
-
-      // Table head "Prüfungsleistung"
-      document.querySelector('thead > tr > th#Name')!.textContent = ''
-      // Table head "Termin"
-      document.querySelector('thead > tr > th#Date')!.textContent =
-        'Prüfungsleistung/Termin'
+      document.querySelector("thead > tr > th#Name").textContent = "";
+      document.querySelector("thead > tr > th#Date").textContent = "Prüfungsleistung/Termin";
     }
   }
 }
