@@ -89,6 +89,8 @@ export abstract class Login {
 
     await this.additionalFunctionsPostCheck(userData).catch(() => {})
 
+    if (this.shouldTimeout()) return
+
     await this.tryLogin(userData)
 
     const buttons = await this.findLogoutButtons()
@@ -121,6 +123,34 @@ export abstract class Login {
   // The if the tuFast_platform_loggedOut cookie is set
   isLoggedOutCookie(): boolean {
     return document.cookie.includes(`tuFast_${this.cookieSettings.portalName}_loggedOut`)
+  }
+
+  // Check how often this login script was executed recently
+  // This is done to prevent rapid retries when the
+  // findCredentialsError function failes
+  shouldTimeout(): boolean {
+    const storageKey = 'TUfast-loginAttempts'
+
+    const retrievedValue = localStorage.getItem(storageKey) ?? '{}'
+
+    const tryCounts: { [key: string]: number[] } = JSON.parse(retrievedValue)
+    tryCounts[this.platform] ??= []
+
+    // Add current login try to the tries
+    const now = Date.now()
+    tryCounts[this.platform].push(now)
+
+    // 15 seconds
+    const timeoutDuration = 1000 * 15
+    // Remove all entries older than the timeoutDuration
+    tryCounts[this.platform] = tryCounts[this.platform].filter((t) => now - t < timeoutDuration)
+
+    // Save the new try
+    localStorage.setItem(storageKey, JSON.stringify(tryCounts))
+    // More than 3 login attempts in the timeOut duration is unrealistic
+    const shouldTimeout = tryCounts[this.platform].length > 3
+    console.log(`Tries: ${shouldTimeout}`, tryCounts)
+    return shouldTimeout
   }
 
   // Function to set the tuFast_platform_loggedOut cookie
