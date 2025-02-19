@@ -126,30 +126,31 @@ export abstract class Login {
   }
 
   // Check how often this login script was executed recently
-  // This is done to prevent rapid retries when the
-  // findCredentialsError function failes
+  // This is done to prevent infinite rapid retries when the
+  // findCredentialsError function fails
   shouldTimeout(): boolean {
     const storageKey = 'TUfast-loginAttempts'
+    const counterName = this.cookieSettings.portalName
 
     const retrievedValue = localStorage.getItem(storageKey) ?? '{}'
 
     const tryCounts: { [key: string]: number[] } = JSON.parse(retrievedValue)
-    tryCounts[this.platform] ??= []
+    tryCounts[counterName] ??= []
 
     // Add current login try to the tries
     const now = Date.now()
-    tryCounts[this.platform].push(now)
+    tryCounts[counterName].push(now)
 
     // 15 seconds
     const timeoutDuration = 1000 * 15
     // Remove all entries older than the timeoutDuration
-    tryCounts[this.platform] = tryCounts[this.platform].filter((t) => now - t < timeoutDuration)
+    tryCounts[counterName] = tryCounts[counterName].filter((t) => now - t < timeoutDuration)
 
     // Save the new try
     localStorage.setItem(storageKey, JSON.stringify(tryCounts))
     // More than 3 login attempts in the timeOut duration is unrealistic
-    const shouldTimeout = tryCounts[this.platform].length > 3
-    console.log(`Tries: ${shouldTimeout}`, tryCounts)
+    const shouldTimeout = tryCounts[counterName].length > 3
+
     return shouldTimeout
   }
 
